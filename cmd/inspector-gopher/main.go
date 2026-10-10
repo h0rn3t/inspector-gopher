@@ -15,6 +15,7 @@ import (
 
 	"github.com/h0rn3t/inspector-gopher/internal/collector"
 	"github.com/h0rn3t/inspector-gopher/internal/config"
+	"github.com/h0rn3t/inspector-gopher/internal/debug"
 	dockerpkg "github.com/h0rn3t/inspector-gopher/internal/docker"
 	"github.com/h0rn3t/inspector-gopher/internal/docker/dockersdk"
 	"github.com/h0rn3t/inspector-gopher/internal/mcp"
@@ -71,13 +72,19 @@ func run() error {
 			logger.Warn("docker unavailable", "err", err)
 		} else {
 			rawClient = raw
-			lister = dockerpkg.NewLister(raw, cfg.Docker.Allowlist, cfg.Docker.DefaultPprofPort, logger)
+			lister = dockerpkg.NewLister(raw, cfg.Docker.Allowlist, cfg.Docker.DefaultPprofPort, logger).
+				WithDAPPort(cfg.Docker.DefaultDAPPort, func(ctx context.Context, addr string) bool {
+					return debug.Probe(ctx, addr, 3*time.Second)
+				})
 		}
 	}
 
+	dbgTimeout := time.Duration(cfg.DebugCfg.TimeoutS) * time.Second
+	dbg := debug.NewManager(cfg.DebugCfg.MaxSessions, dbgTimeout)
+
 	srv := mcp.New(mcp.Deps{
 		Config: cfg, Registry: reg, Collector: coll,
-		Store: st, Docker: lister, DockerRaw: rawClient,
+		Store: st, Docker: lister, DockerRaw: rawClient, Debugger: dbg,
 		Logger: logger, StartTime: time.Now(),
 	})
 

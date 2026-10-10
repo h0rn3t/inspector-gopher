@@ -18,6 +18,14 @@ import (
 type LocalTarget struct {
 	Name     string `json:"name" yaml:"name"`
 	PprofURL string `json:"pprof_url" yaml:"pprof_url"`
+	// DAPAddr is an optional host:port of a `dlv dap` server for this target.
+	DAPAddr string `json:"dap_addr,omitempty" yaml:"dap_addr,omitempty"`
+}
+
+// DebugTarget is a named DAP endpoint for local debugging.
+type DebugTarget struct {
+	Name    string `json:"name" yaml:"name"`
+	DAPAddr string `json:"dap_addr" yaml:"dap_addr"`
 }
 
 // DockerConfig controls Docker socket access and container allowlist.
@@ -25,6 +33,14 @@ type DockerConfig struct {
 	Socket           string   `json:"socket" yaml:"socket"`
 	Allowlist        []string `json:"allowlist" yaml:"allowlist"`
 	DefaultPprofPort int      `json:"default_pprof_port" yaml:"default_pprof_port"`
+	// DefaultDAPPort is probed for `dlv dap` alongside the pprof port.
+	DefaultDAPPort int `json:"default_dap_port" yaml:"default_dap_port"`
+}
+
+// DebugConfig bounds debug sessions.
+type DebugConfig struct {
+	MaxSessions int `json:"max_sessions" yaml:"max_sessions"`
+	TimeoutS    int `json:"timeout_s" yaml:"timeout_s"`
 }
 
 // LimitsConfig bounds profile collection.
@@ -43,10 +59,12 @@ type ServerConfig struct {
 
 // Config is the full server configuration.
 type Config struct {
-	Local  []LocalTarget `json:"local" yaml:"local"`
-	Docker DockerConfig  `json:"docker" yaml:"docker"`
-	Limits LimitsConfig  `json:"limits" yaml:"limits"`
-	Server ServerConfig  `json:"server" yaml:"server"`
+	Local    []LocalTarget `json:"local" yaml:"local"`
+	Debug    []DebugTarget `json:"debug,omitempty" yaml:"debug,omitempty"`
+	Docker   DockerConfig  `json:"docker" yaml:"docker"`
+	Limits   LimitsConfig  `json:"limits" yaml:"limits"`
+	Server   ServerConfig  `json:"server" yaml:"server"`
+	DebugCfg DebugConfig   `json:"debug_cfg,omitempty" yaml:"debug_cfg,omitempty"`
 }
 
 // Defaults returns a Config with safe defaults.
@@ -55,6 +73,7 @@ func Defaults() Config {
 		Docker: DockerConfig{
 			Socket:           "unix:///var/run/docker.sock",
 			DefaultPprofPort: 6060,
+			DefaultDAPPort:   2345,
 		},
 		Limits: LimitsConfig{
 			MaxProfileMB:    64,
@@ -64,6 +83,10 @@ func Defaults() Config {
 		},
 		Server: ServerConfig{
 			Stdio: true,
+		},
+		DebugCfg: DebugConfig{
+			MaxSessions: 4,
+			TimeoutS:    10,
 		},
 	}
 }
@@ -134,6 +157,16 @@ func applyEnv(cfg *Config) {
 			cfg.Limits.MaxCPUSeconds = n
 		}
 	}
+	if v := os.Getenv("INSPECTOR_DEBUG_MAX_SESSIONS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.DebugCfg.MaxSessions = n
+		}
+	}
+	if v := os.Getenv("INSPECTOR_DEBUG_TIMEOUT_S"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.DebugCfg.TimeoutS = n
+		}
+	}
 }
 
 // Validate checks invariants.
@@ -154,6 +187,20 @@ func (c Config) Validate() error {
 		if t.Name == "" || t.PprofURL == "" {
 			return fmt.Errorf("local target requires name and pprof_url")
 		}
+	}
+	for _, t := range c.Debug {
+		if t.Name == "" || t.DAPAddr == "" {
+			return fmt.Errorf("debug target requires name and dap_addr")
+		}
+		if _, _, err := net.SplitHostPort(t.DAPAddr); err != nil {
+			return fmt.Errorf("debug target %q dap_addr: %w", t.Name, err)
+		}
+	}
+	if c.DebugCfg.MaxSessions < 0 {
+		return fmt.Errorf("debug_cfg.max_sessions must be >= 0")
+	}
+	if c.DebugCfg.TimeoutS < 0 {
+		return fmt.Errorf("debug_cfg.timeout_s must be >= 0")
 	}
 	if c.Server.HTTPAddr != "" {
 		if _, _, err := net.SplitHostPort(c.Server.HTTPAddr); err != nil {

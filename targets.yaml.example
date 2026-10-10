@@ -1,15 +1,24 @@
 local:
   - name: api-local
     pprof_url: http://127.0.0.1:6060
+    # dap_addr: 127.0.0.1:2345   # dlv dap --listen 127.0.0.1:2345
+# Named DAP endpoints (alternative to local[].dap_addr):
+# debug:
+#   - name: api-dbg
+#     dap_addr: 127.0.0.1:2345
 docker:
   socket: unix:///var/run/docker.sock
   allowlist: ["pprof-demo", "api-*"]
   default_pprof_port: 6060
+  default_dap_port: 2345
 limits:
   max_profile_mb: 64
   default_timeout_s: 60
   max_cpu_seconds: 120
   max_trace_seconds: 30
+debug_cfg:
+  max_sessions: 4
+  timeout_s: 10
 server:
   http_addr: ""
   stdio: true

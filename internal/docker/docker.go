@@ -21,6 +21,8 @@ type Container struct {
 	Ports          []int  `json:"ports"`
 	PprofReachable bool   `json:"pprof_reachable"`
 	PprofURL       string `json:"pprof_url,omitempty"`
+	DAPReachable   bool   `json:"dap_reachable,omitempty"`
+	DAPAddr        string `json:"dap_addr,omitempty"`
 }
 
 // Client abstracts the Docker API for testability.
@@ -36,8 +38,10 @@ type Lister struct {
 	client      Client
 	allowlist   []string
 	pprofPort   int
+	dapPort     int
 	probeTimout time.Duration
 	audit       *slog.Logger
+	dapProbe    func(ctx context.Context, addr string) bool
 }
 
 // NewLister builds a Lister.
@@ -48,7 +52,16 @@ func NewLister(c Client, allowlist []string, pprofPort int, audit *slog.Logger) 
 	if audit == nil {
 		audit = slog.Default()
 	}
-	return &Lister{client: c, allowlist: allowlist, pprofPort: pprofPort, probeTimout: 3 * time.Second, audit: audit}
+	return &Lister{client: c, allowlist: allowlist, pprofPort: pprofPort, dapPort: 2345, probeTimout: 3 * time.Second, audit: audit}
+}
+
+// WithDAPPort sets the DAP probe port and probe func (for wiring/tests).
+func (l *Lister) WithDAPPort(port int, probe func(ctx context.Context, addr string) bool) *Lister {
+	if port > 0 {
+		l.dapPort = port
+	}
+	l.dapProbe = probe
+	return l
 }
 
 // Allowed reports whether a container name/ID matches the allowlist.
@@ -91,6 +104,16 @@ func (l *Lister) Targets(ctx context.Context) ([]Container, error) {
 				containers[i].PprofReachable = true
 				containers[i].PprofURL = fmt.Sprintf("http://127.0.0.1:%d", port)
 				break
+			}
+		}
+		if l.dapProbe != nil {
+			for _, port := range c.Ports {
+				addr := fmt.Sprintf("127.0.0.1:%d", port)
+				if port == l.dapPort || l.dapProbe(ctx, addr) {
+					containers[i].DAPReachable = true
+					containers[i].DAPAddr = addr
+					break
+				}
 			}
 		}
 	}

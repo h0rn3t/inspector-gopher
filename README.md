@@ -35,7 +35,7 @@ go run ./demo/pprof-demo &
 ```
 
 Приклад `targets.yaml` — див. `targets.yaml.example`. Документація: `docs/config.md`,
-`docs/docker.md`, `docs/analysis.md`.
+`docs/docker.md`, `docs/analysis.md`, `docs/debug.md`.
 
 ## MCP-клієнти
 
@@ -48,13 +48,17 @@ stdio:
 }}}
 ```
 
-## Інструменти (13)
+## Інструменти (22)
 
 Збір: `profile_cpu`, `profile_heap`, `profile_mutex`, `profile_block`,
 `profile_goroutine`, `capture_trace`, `runtime_stats`.
 Docker: `docker_list_targets`, `docker_profile`.
 Аналіз: `analyze_profile`, `diff_profiles`, `flamegraph_data`.
-Службовий: `server_health`. Ресурси: `config://targets`, `profile://recent`.
+Службовий: `server_health`.
+Дебаг (Delve DAP, local + Docker): `debug_start`, `debug_stop`, `debug_list`,
+`debug_breakpoint`, `debug_continue`, `debug_step`, `debug_stack`,
+`debug_vars`, `debug_evaluate` — див. `docs/debug.md`.
+Ресурси: `config://targets`, `profile://recent`, `debug://sessions`.
 
 ## Приклад роботи
 

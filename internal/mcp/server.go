@@ -12,6 +12,7 @@ import (
 
 	"github.com/h0rn3t/inspector-gopher/internal/collector"
 	"github.com/h0rn3t/inspector-gopher/internal/config"
+	"github.com/h0rn3t/inspector-gopher/internal/debug"
 	dockerpkg "github.com/h0rn3t/inspector-gopher/internal/docker"
 	"github.com/h0rn3t/inspector-gopher/internal/store"
 	"github.com/h0rn3t/inspector-gopher/internal/targets"
@@ -34,6 +35,15 @@ const (
 	ToolDiff             = "diff_profiles"
 	ToolFlamegraph       = "flamegraph_data"
 	ToolHealth           = "server_health"
+	ToolDebugStart       = "debug_start"
+	ToolDebugStop        = "debug_stop"
+	ToolDebugList        = "debug_list"
+	ToolDebugBreakpoint  = "debug_breakpoint"
+	ToolDebugContinue    = "debug_continue"
+	ToolDebugStep        = "debug_step"
+	ToolDebugStack       = "debug_stack"
+	ToolDebugVars        = "debug_vars"
+	ToolDebugEvaluate    = "debug_evaluate"
 )
 
 // ToolNames lists every registered tool.
@@ -42,6 +52,8 @@ var ToolNames = []string{
 	ToolProfileGoroutine, ToolCaptureTrace, ToolRuntimeStats,
 	ToolDockerList, ToolDockerProfile,
 	ToolAnalyze, ToolDiff, ToolFlamegraph, ToolHealth,
+	ToolDebugStart, ToolDebugStop, ToolDebugList, ToolDebugBreakpoint,
+	ToolDebugContinue, ToolDebugStep, ToolDebugStack, ToolDebugVars, ToolDebugEvaluate,
 }
 
 // Deps wires the server to its collaborators.
@@ -52,6 +64,7 @@ type Deps struct {
 	Store     *store.Store
 	Docker    *dockerpkg.Lister
 	DockerRaw dockerpkg.Client
+	Debugger  *debug.Manager
 	Logger    *slog.Logger
 	StartTime time.Time
 }
@@ -71,6 +84,11 @@ func New(d Deps) *Server {
 	}
 	if d.StartTime.IsZero() {
 		d.StartTime = time.Now()
+	}
+	if d.Debugger == nil {
+		maxSessions := d.Config.DebugCfg.MaxSessions
+		timeoutS := d.Config.DebugCfg.TimeoutS
+		d.Debugger = debug.NewManager(maxSessions, time.Duration(timeoutS)*time.Second)
 	}
 	s := &Server{deps: d}
 	ms := mcp.NewServer(&mcp.Implementation{Name: "inspector-gopher", Version: version.Version}, nil)
@@ -237,6 +255,7 @@ func (s *Server) registerTools(ms *mcp.Server) {
 			Tools: len(ToolNames), Profiles: len(s.deps.Store.Recent(1000000)),
 		}, nil
 	})
+	s.registerDebugTools(ms, ro, rw)
 }
 
 func (s *Server) registerResources(ms *mcp.Server) {
@@ -249,6 +268,12 @@ func (s *Server) registerResources(ms *mcp.Server) {
 		for _, n := range names {
 			text += "  - " + n + "\n"
 		}
+		if len(s.deps.Config.Debug) > 0 {
+			text += "debug targets:\n"
+			for _, t := range s.deps.Config.Debug {
+				text += "  - " + t.Name + " -> " + t.DAPAddr + "\n"
+			}
+		}
 		text += fmt.Sprintf("docker allowlist: %v\n", s.deps.Config.Docker.Allowlist)
 		return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "config://targets", MIMEType: "text/plain", Text: text}}}, nil
 	})
@@ -258,5 +283,15 @@ func (s *Server) registerResources(ms *mcp.Server) {
 			fmt.Fprintf(&b, "%s %s %s %d bytes\n", p.ID, p.Kind, p.Target, p.Size)
 		}
 		return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "profile://recent", MIMEType: "text/plain", Text: b.String()}}}, nil
+	})
+	ms.AddResource(&mcp.Resource{URI: "debug://sessions", Name: "sessions", Description: "Live debug sessions"}, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+		var b strings.Builder
+		for _, sess := range s.deps.Debugger.List() {
+			fmt.Fprintf(&b, "%s %s %s %s\n", sess.ID, sess.Target, sess.Container, sess.DAPAddr)
+		}
+		if b.Len() == 0 {
+			b.WriteString("(no live sessions)\n")
+		}
+		return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "debug://sessions", MIMEType: "text/plain", Text: b.String()}}}, nil
 	})
 }

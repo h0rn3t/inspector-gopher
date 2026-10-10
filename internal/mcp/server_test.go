@@ -53,8 +53,33 @@ func TestToolCatalogHasTwelvePlusHealth(t *testing.T) {
 			t.Errorf("tool %q missing from catalog (got %v)", want, names)
 		}
 	}
-	if len(res.Tools) < 13 {
-		t.Errorf("expected >= 13 tools, got %d", len(res.Tools))
+	if len(res.Tools) < 22 {
+		t.Errorf("expected >= 22 tools, got %d", len(res.Tools))
+	}
+}
+
+func TestDebugToolsResolveWithoutNetwork(t *testing.T) {
+	s := testServer(t)
+	ctx := context.Background()
+	// Unknown target: forbidden before any dial.
+	if _, err := s.resolveDebugStart(ctx, map[string]any{"target": "nope-missing", "mode": "remote"}); err == nil {
+		t.Error("resolveDebugStart(unknown) = nil, want error")
+	}
+	// Known target without dap_addr: actionable hint, no dial.
+	if _, err := s.resolveDebugStart(ctx, map[string]any{"target": "api-local", "mode": "remote"}); err == nil {
+		t.Error("resolveDebugStart(no dap) = nil, want debug_no_dap")
+	}
+	// Explicit dap_addr with unknown container and no docker: unavailable.
+	if _, err := s.resolveDebugStart(ctx, map[string]any{"container": "api-1", "mode": "remote", "dap_addr": "127.0.0.1:2345"}); err == nil {
+		t.Error("resolveDebugStart(container, no docker) = nil, want error")
+	}
+	// Explicit non-loopback dap_addr: forbidden without dial.
+	if _, err := s.resolveDebugStart(ctx, map[string]any{"target": "api-local", "mode": "remote", "dap_addr": "10.0.0.9:2345"}); err == nil {
+		t.Error("resolveDebugStart(non-loopback) = nil, want forbidden")
+	}
+	// debug_list on a fresh server is empty.
+	if got := s.deps.Debugger.List(); len(got) != 0 {
+		t.Errorf("fresh debug list = %v, want empty", got)
 	}
 }
 
@@ -99,7 +124,7 @@ func TestHealthAndResources(t *testing.T) {
 	for _, r := range res.Resources {
 		uris[r.URI] = true
 	}
-	if !uris["config://targets"] || !uris["profile://recent"] {
+	if !uris["config://targets"] || !uris["profile://recent"] || !uris["debug://sessions"] {
 		t.Errorf("resources missing: %v", uris)
 	}
 }

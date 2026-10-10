@@ -48,6 +48,26 @@ func TestTargetsProbePublishedPort(t *testing.T) {
 	}
 }
 
+func TestTargetsProbeDAPPort(t *testing.T) {
+	fc := &fakeClient{
+		containers: []Container{{ID: "abc", Name: "api", Image: "api:latest", Ports: []int{2345}}},
+		probe:      map[string]bool{},
+	}
+	l := NewLister(fc, []string{"api"}, 6060, nil).WithDAPPort(2345, func(ctx context.Context, addr string) bool {
+		return addr == "127.0.0.1:2345"
+	})
+	got, err := l.Targets(context.Background())
+	if err != nil {
+		t.Fatalf("Targets: %v", err)
+	}
+	if !got[0].DAPReachable || got[0].DAPAddr != "127.0.0.1:2345" {
+		t.Errorf("dap probe result: %+v", got[0])
+	}
+	if got[0].PprofReachable {
+		t.Errorf("pprof must stay unreachable: %+v", got[0])
+	}
+}
+
 func TestAllowedMatching(t *testing.T) {
 	l := NewLister(nil, []string{"api-*", "label:team=backend"}, 6060, nil)
 	if !l.Allowed("api-1", "zzz", nil) {
