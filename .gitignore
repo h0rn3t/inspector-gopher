@@ -1,7 +1,15 @@
-.DS_Store
+# Binaries and build output
 /inspector-gopher
-/tmp/
 *.test
 *.out
+
+# Local tooling and caches
+/tmp/
 .idea/
 .vscode/
+.DS_Store
+
+# Planning / agent configs (kept out of the public repo)
+openspec/
+.github/
+testdata/
