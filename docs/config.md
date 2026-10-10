@@ -24,8 +24,11 @@ debug_cfg:
   max_sessions: 4
   timeout_s: 10
 server:
-  http_addr: ""        # e.g. 127.0.0.1:8080 to enable Streamable HTTP
+  http_addr: ""        # e.g. 127.0.0.1:8080 to enable Streamable HTTP + dashboard previews
   stdio: true
+dashboard:
+  dir: ""              # default ~/.cache/inspector-gopher/dashboards
+  base_url: ""          # default http://<http_addr> for preview links
 ```
 
 ## Rules
@@ -38,7 +41,8 @@ server:
 - Env overrides: `INSPECTOR_HTTP_ADDR`, `INSPECTOR_STDIO`, `INSPECTOR_DOCKER_SOCKET`,
   `INSPECTOR_DOCKER_ALLOWLIST` (comma-separated), `INSPECTOR_MAX_PROFILE_MB`,
   `INSPECTOR_TIMEOUT_S`, `INSPECTOR_MAX_CPU_SECONDS`,
-  `INSPECTOR_DEBUG_MAX_SESSIONS`, `INSPECTOR_DEBUG_TIMEOUT_S`.
+  `INSPECTOR_DEBUG_MAX_SESSIONS`, `INSPECTOR_DEBUG_TIMEOUT_S`,
+  `INSPECTOR_DASHBOARD_DIR`, `INSPECTOR_DASHBOARD_BASE_URL`.
   `DOCKER_HOST` sets the socket too.
 
 ## Verify

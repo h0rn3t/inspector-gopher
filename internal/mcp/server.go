@@ -34,6 +34,7 @@ const (
 	ToolAnalyze          = "analyze_profile"
 	ToolDiff             = "diff_profiles"
 	ToolFlamegraph       = "flamegraph_data"
+	ToolFlamegraphReport = "flamegraph_report"
 	ToolHealth           = "server_health"
 	ToolDebugStart       = "debug_start"
 	ToolDebugStop        = "debug_stop"
@@ -51,7 +52,7 @@ var ToolNames = []string{
 	ToolProfileCPU, ToolProfileHeap, ToolProfileMutex, ToolProfileBlock,
 	ToolProfileGoroutine, ToolCaptureTrace, ToolRuntimeStats,
 	ToolDockerList, ToolDockerProfile,
-	ToolAnalyze, ToolDiff, ToolFlamegraph, ToolHealth,
+	ToolAnalyze, ToolDiff, ToolFlamegraph, ToolFlamegraphReport, ToolHealth,
 	ToolDebugStart, ToolDebugStop, ToolDebugList, ToolDebugBreakpoint,
 	ToolDebugContinue, ToolDebugStep, ToolDebugStack, ToolDebugVars, ToolDebugEvaluate,
 }
@@ -95,6 +96,7 @@ func New(d Deps) *Server {
 	s.mcpServer = ms
 	s.registerTools(ms)
 	s.registerResources(ms)
+	s.registerDashboardResources(ms)
 	return s
 }
 
@@ -139,6 +141,9 @@ func (s *Server) registerTools(ms *mcp.Server) {
 
 	add := func(name, desc string, ann *mcp.ToolAnnotations, h func(ctx context.Context, req *mcp.CallToolRequest, in map[string]any) (*mcp.CallToolResult, any, error)) {
 		mcp.AddTool(ms, &mcp.Tool{Name: name, Description: desc, Annotations: ann}, h)
+	}
+	addUI := func(name, desc string, ann *mcp.ToolAnnotations, h func(ctx context.Context, req *mcp.CallToolRequest, in map[string]any) (*mcp.CallToolResult, any, error)) {
+		mcp.AddTool(ms, &mcp.Tool{Name: name, Description: desc, Annotations: ann, Meta: uiMeta()}, h)
 	}
 
 	collect := func(kind string, needSeconds bool) func(ctx context.Context, req *mcp.CallToolRequest, in map[string]any) (*mcp.CallToolResult, any, error) {
@@ -237,7 +242,7 @@ func (s *Server) registerTools(ms *mcp.Server) {
 		}
 		return nil, out, nil
 	})
-	add(ToolFlamegraph, "Render flamegraph data (folded stacks or JSON tree).", ro, func(ctx context.Context, req *mcp.CallToolRequest, in map[string]any) (*mcp.CallToolResult, any, error) {
+	addUI(ToolFlamegraph, "Render flamegraph data (folded stacks or JSON tree). Has an MCP Apps dashboard view.", ro, func(ctx context.Context, req *mcp.CallToolRequest, in map[string]any) (*mcp.CallToolResult, any, error) {
 		id, _ := in["profile_id"].(string)
 		format, _ := in["format"].(string)
 		out, err := s.flamegraph(id, format)
@@ -247,6 +252,7 @@ func (s *Server) registerTools(ms *mcp.Server) {
 		}
 		return nil, out, nil
 	})
+	addUI(ToolFlamegraphReport, "Render an interactive flamegraph dashboard (MCP Apps UI, browser preview, saved HTML artifact).", ro, s.flamegraphReport)
 	add(ToolHealth, "Server health: version, uptime, call counters.", ro, func(ctx context.Context, req *mcp.CallToolRequest, in map[string]any) (*mcp.CallToolResult, any, error) {
 		s.count(true)
 		return nil, healthOut{

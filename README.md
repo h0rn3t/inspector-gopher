@@ -35,7 +35,7 @@ go run ./demo/pprof-demo &
 ```
 
 Приклад `targets.yaml` — див. `targets.yaml.example`. Документація: `docs/config.md`,
-`docs/docker.md`, `docs/analysis.md`, `docs/debug.md`.
+`docs/docker.md`, `docs/analysis.md`, `docs/dashboards.md`, `docs/debug.md`.
 
 ## MCP-клієнти
 
@@ -48,17 +48,22 @@ stdio:
 }}}
 ```
 
-## Інструменти (22)
+## Інструменти (23)
 
 Збір: `profile_cpu`, `profile_heap`, `profile_mutex`, `profile_block`,
 `profile_goroutine`, `capture_trace`, `runtime_stats`.
 Docker: `docker_list_targets`, `docker_profile`.
 Аналіз: `analyze_profile`, `diff_profiles`, `flamegraph_data`.
+Дашборди: `flamegraph_report` — інтерактивний flamegraph як MCP Apps UI
+(`ui://inspector-gopher/flamegraph/…`), browser preview
+(`GET /dashboard/flamegraph/{id}` при `--http`) та збережений HTML-файл;
+деталі — `docs/dashboards.md`.
 Службовий: `server_health`.
 Дебаг (Delve DAP, local + Docker): `debug_start`, `debug_stop`, `debug_list`,
 `debug_breakpoint`, `debug_continue`, `debug_step`, `debug_stack`,
 `debug_vars`, `debug_evaluate` — див. `docs/debug.md`.
-Ресурси: `config://targets`, `profile://recent`, `debug://sessions`.
+Ресурси: `config://targets`, `profile://recent`, `debug://sessions`,
+`ui://inspector-gopher/flamegraph` (+ `…/flamegraph/{profile_id}` per-profile).
 
 ## Приклад роботи
 

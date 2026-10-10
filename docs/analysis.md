@@ -25,6 +25,10 @@ Thresholds are conservative; raw data always ships alongside so you can disagree
 - `flamegraph_data(format=folded)` — `stack;frames count` lines for CPU.
 - `flamegraph_data(format=tree)` — `{name, value, children}` JSON tree;
   `truncated: true` when depth >200 or nodes >5000.
+- `flamegraph_report(profile_id=…)` — interactive dashboard: MCP Apps UI
+  (`ui://inspector-gopher/flamegraph/…`), browser preview
+  (`GET /dashboard/flamegraph/…`, needs `--http`), saved HTML artifact.
+  Details: `docs/dashboards.md`.
 
 ## Verify
 

@@ -16,6 +16,9 @@ limits:
   default_timeout_s: 60
   max_cpu_seconds: 120
   max_trace_seconds: 30
+dashboard:
+  dir: ""       # default ~/.cache/inspector-gopher/dashboards
+  base_url: ""   # default http://<server.http_addr> for preview links
 debug_cfg:
   max_sessions: 4
   timeout_s: 10

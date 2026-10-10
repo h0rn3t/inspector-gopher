@@ -57,14 +57,23 @@ type ServerConfig struct {
 	Stdio    bool   `json:"stdio" yaml:"stdio"`
 }
 
+// DashboardConfig controls flamegraph dashboard artifacts and preview links.
+type DashboardConfig struct {
+	// Dir overrides the artifact directory (default ~/.cache/inspector-gopher/dashboards).
+	Dir string `json:"dir,omitempty" yaml:"dir,omitempty"`
+	// BaseURL overrides preview links (default http://<server.http_addr>).
+	BaseURL string `json:"base_url,omitempty" yaml:"base_url,omitempty"`
+}
+
 // Config is the full server configuration.
 type Config struct {
-	Local    []LocalTarget `json:"local" yaml:"local"`
-	Debug    []DebugTarget `json:"debug,omitempty" yaml:"debug,omitempty"`
-	Docker   DockerConfig  `json:"docker" yaml:"docker"`
-	Limits   LimitsConfig  `json:"limits" yaml:"limits"`
-	Server   ServerConfig  `json:"server" yaml:"server"`
-	DebugCfg DebugConfig   `json:"debug_cfg,omitempty" yaml:"debug_cfg,omitempty"`
+	Local     []LocalTarget   `json:"local" yaml:"local"`
+	Debug     []DebugTarget   `json:"debug,omitempty" yaml:"debug,omitempty"`
+	Docker    DockerConfig    `json:"docker" yaml:"docker"`
+	Limits    LimitsConfig    `json:"limits" yaml:"limits"`
+	Server    ServerConfig    `json:"server" yaml:"server"`
+	DebugCfg  DebugConfig     `json:"debug_cfg,omitempty" yaml:"debug_cfg,omitempty"`
+	Dashboard DashboardConfig `json:"dashboard,omitempty" yaml:"dashboard,omitempty"`
 }
 
 // Defaults returns a Config with safe defaults.
@@ -166,6 +175,12 @@ func applyEnv(cfg *Config) {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			cfg.DebugCfg.TimeoutS = n
 		}
+	}
+	if v := os.Getenv("INSPECTOR_DASHBOARD_DIR"); v != "" {
+		cfg.Dashboard.Dir = v
+	}
+	if v := os.Getenv("INSPECTOR_DASHBOARD_BASE_URL"); v != "" {
+		cfg.Dashboard.BaseURL = v
 	}
 }
 
