@@ -1,0 +1,28 @@
+version: "2"
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters: [errcheck]
+      - path: .*_test\.go
+        text: "Error return value of `w\\.Write`"
+      - linters: [errcheck]
+        text: "Error return value of `resp\\.Body\\.Close`"
+formatters:
+  enable:
+    - gofmt
+    - goimports
